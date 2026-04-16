@@ -1,0 +1,14 @@
+[package]
+name = "rquickjs-wasm-host"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wasmtime = "41.0.4"
+wasmtime-wasi = "41.0.4"
+
+[build-dependencies]
+csbindgen = "1.9.7"

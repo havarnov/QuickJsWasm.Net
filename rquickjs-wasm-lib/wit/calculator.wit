@@ -1,0 +1,12 @@
+package local:calculator;
+
+interface api {
+    resource engine {
+        constructor();
+        add: func(x: u32, y: u32) -> u32;
+    }
+}
+
+world calculator {
+    export api;
+}

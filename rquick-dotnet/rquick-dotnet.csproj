@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>rquick_dotnet</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+      <ItemGroup>
+          <None Include="../rquickjs-wasm-host/target/debug/librquickjs_wasm_host.dylib">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+            <Link>librquickjs_dotnet.dylib</Link>
+        </None>
+    </ItemGroup>
+</Project>
