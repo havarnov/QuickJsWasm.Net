@@ -8,13 +8,13 @@ unsafe
 
     Console.WriteLine("After init");
 
+    RQuickJs.Native.NativeMethods.csharp_to_rust(ctx, &Sum);
+
     var x = RQuickJs.Native.NativeMethods.run(ctx, 42, 8);
     Console.WriteLine(x);
 
     var y = RQuickJs.Native.NativeMethods.run(ctx, 42, 8);
     Console.WriteLine(y);
-
-    RQuickJs.Native.NativeMethods.csharp_to_rust(ctx, &Sum);
 }
 
 // C# -> Rust, pass static UnmanagedCallersOnly method with `&`

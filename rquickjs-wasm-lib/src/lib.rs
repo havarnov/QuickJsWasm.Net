@@ -1,6 +1,7 @@
-use rquickjs::{Context, Runtime};
+use rquickjs::{Context, Function, Runtime};
 
 use crate::bindings::exports::local::calculator::api::Guest;
+use crate::bindings::local::calculator::callback_handler;
 
 #[allow(unused)]
 mod bindings {
@@ -25,8 +26,31 @@ impl bindings::exports::local::calculator::api::GuestEngine for Engine {
 
     fn add(&self, x: u32, y: u32) -> u32 {
         self.ctx.with(|ctx| {
-            ctx.eval::<u32, _>(format!("var foo = (foo == undefined ? 0 : foo) + {x} + {y}; foo")).unwrap()
+            ctx.eval::<u32, _>(format!(
+                "var foo = (foo == undefined ? 0 : foo) + {x} + {y} + __print({x}, {y}); foo"
+            ))
+            .unwrap()
         })
+    }
+
+    fn f(&self, cb: callback_handler::Callback) -> u32 {
+        self.ctx
+            .with(|ctx| -> Result<(), ()> {
+                let cb = cb;
+                let global = ctx.globals();
+
+                _ = global.set(
+                    "__print",
+                    Function::new(ctx.clone(), move || cb.get_value())
+                        .unwrap()
+                        .with_name("__print")
+                        .unwrap(),
+                );
+                Ok(())
+            })
+            .unwrap();
+
+        32
     }
 }
 

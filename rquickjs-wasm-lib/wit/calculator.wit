@@ -1,12 +1,22 @@
 package local:calculator;
 
+interface callback-handler {
+    resource callback {
+        // This replaces the anonymous function 'f'
+        get-value: func() -> u32;
+    }
+}
+
 interface api {
+    use callback-handler.{callback};
     resource engine {
         constructor();
         add: func(x: u32, y: u32) -> u32;
+        f: func(cb: own<callback>) -> u32;
     }
 }
 
 world calculator {
+    import callback-handler;
     export api;
 }
