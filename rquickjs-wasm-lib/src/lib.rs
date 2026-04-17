@@ -1,3 +1,5 @@
+#![allow(unsafe_op_in_unsafe_fn)]
+
 use rquickjs::{Context, Function, Runtime};
 
 use crate::bindings::exports::rquickjs::wasm::engine_api::Guest;
@@ -13,7 +15,6 @@ struct Engine {
     _rt: Runtime,
 }
 
-// 1. Implement the trait for the resource inside the interface
 impl bindings::exports::rquickjs::wasm::engine_api::GuestEngine for Engine {
     fn new() -> Self {
         let runtime = Runtime::new().unwrap();
@@ -52,13 +53,10 @@ impl bindings::exports::rquickjs::wasm::engine_api::GuestEngine for Engine {
     }
 }
 
-// 2. Define the provider struct for the export macro
 struct ContextHost;
 
 impl Guest for ContextHost {
     type Engine = Engine;
 }
 
-// 3. The export macro now maps the WIT 'api' to our 'Engine' implementation.
-// Note: We do NOT need "impl bindings::Guest for ContextHost" here.
 bindings::export!(ContextHost with_types_in bindings);
