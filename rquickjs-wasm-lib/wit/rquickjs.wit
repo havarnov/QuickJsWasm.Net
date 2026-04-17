@@ -1,0 +1,21 @@
+package rquickjs:wasm;
+
+interface callbacks {
+    resource f-unit-unit {
+        get-implementation: func();
+    }
+}
+
+interface engine-api {
+    use callbacks.{f-unit-unit};
+    resource engine {
+        constructor();
+        eval: func(script: string);
+        register: func(name: string, fn: f-unit-unit);
+    }
+}
+
+world rquickjs {
+    import callbacks;
+    export engine-api;
+}

@@ -1,6 +1,9 @@
 [lib]
 crate-type = ["cdylib"]
 
+[build]
+target = "wasm32-wasip2"
+
 [package]
 name = "rquickjs-wasm-lib"
 version = "0.1.0"
