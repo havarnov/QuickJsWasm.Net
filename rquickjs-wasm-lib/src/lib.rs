@@ -41,7 +41,7 @@ impl bindings::exports::rquickjs::wasm::engine_api::GuestEngine for Engine {
 
                 _ = global.set(
                     &name,
-                    Function::new(ctx.clone(), move || func.get_implementation())
+                    Function::new(ctx.clone(), move || func.call())
                         .unwrap()
                         .with_name(&name)
                         .unwrap(),

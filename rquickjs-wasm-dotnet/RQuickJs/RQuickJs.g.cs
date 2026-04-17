@@ -21,11 +21,11 @@ namespace RQuickJs.Native
         [DllImport(__DllName, EntryPoint = "init", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         internal static extern RuntimeContext* init();
 
-        [DllImport(__DllName, EntryPoint = "run", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        internal static extern uint run(RuntimeContext* ctx, uint a, uint b);
+        [DllImport(__DllName, EntryPoint = "eval", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        internal static extern void eval(RuntimeContext* ctx, byte* script);
 
-        [DllImport(__DllName, EntryPoint = "csharp_to_rust", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        internal static extern void csharp_to_rust(RuntimeContext* ctx, delegate* unmanaged[Cdecl]<int, int, int> cb);
+        [DllImport(__DllName, EntryPoint = "register", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        internal static extern void register(RuntimeContext* ctx, byte* name, delegate* unmanaged[Cdecl]<void> func);
 
 
     }
