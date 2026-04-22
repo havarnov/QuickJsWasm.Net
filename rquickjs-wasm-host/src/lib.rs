@@ -4,7 +4,7 @@ use wasmtime::component::HasSelf;
 use wasmtime::component::{Component, Linker, ResourceTable};
 use wasmtime::{Engine, Store};
 
-use crate::rquickjs::wasm::callbacks;
+use crate::rquickjs::wasm::callback_api;
 use wasmtime::component::Resource;
 use wasmtime::component::ResourceAny;
 use wasmtime_wasi::{WasiCtx, WasiCtxView, WasiView};
@@ -13,7 +13,8 @@ wasmtime::component::bindgen!({
     world: "rquickjs",
     path: "../rquickjs-wasm-lib/wit/rquickjs.wit",
     with: {
-        "rquickjs:wasm/callbacks.f-unit-unit": UnitUnit,
+        "rquickjs:wasm/callback-api.callback": Callback,
+        "rquickjs:wasm/callback-api.lazy-param": LazyParam,
     },
     imports: { default: trappable },
 });
@@ -48,7 +49,7 @@ pub extern "C" fn init() -> *mut RuntimeContext {
     let mut linker = Linker::new(&engine);
     wasmtime_wasi::p2::add_to_linker_sync(&mut linker).unwrap();
 
-    crate::callbacks::add_to_linker::<ComponentRunStates, HasSelf<_>>(
+    crate::callback_api::add_to_linker::<ComponentRunStates, HasSelf<_>>(
         &mut linker,
         |state: &mut ComponentRunStates| state,
     )
@@ -99,36 +100,58 @@ pub extern "C" fn eval(ctx: *mut RuntimeContext, script: *const c_char) {
     }
 }
 
-pub struct UnitUnit {
-    func: Box<dyn Fn() -> () + Send + 'static>,
+pub struct Callback {}
+
+pub struct LazyParam {
+    value: callback_api::Param,
 }
 
-impl crate::callbacks::Host for ComponentRunStates {}
+impl crate::callback_api::Host for ComponentRunStates {}
 
-impl crate::callbacks::HostFUnitUnit for ComponentRunStates {
-    fn call(&mut self, cb: Resource<UnitUnit>) -> wasmtime::Result<()> {
-        let _unit_unit: &UnitUnit = self.resource_table.get(&cb)?;
-        (_unit_unit.func)();
-        Ok(())
+impl crate::callback_api::HostLazyParam for ComponentRunStates {
+    fn new(&mut self, value: callback_api::Param) -> Result<Resource<LazyParam>, wasmtime::Error> {
+        let resource: LazyParam = LazyParam { value, };
+        let resource: Resource<callback_api::LazyParam> = self.resource_table.push(resource).unwrap();
+        Ok(resource)
     }
 
-    fn drop(&mut self, cb: Resource<UnitUnit>) -> wasmtime::Result<()> {
-        let _unit_unit: UnitUnit = self.resource_table.delete(cb)?;
+    fn get(&mut self, resource: wasmtime::component::Resource<LazyParam>) -> Result<callback_api::Param, wasmtime::Error> {
+        let param: &LazyParam = self.resource_table.get(&resource)?;
+        Ok(match param.value {
+            callback_api::Param::Unit => callback_api::Param::Unit,
+            callback_api::Param::Int(i) => callback_api::Param::Int(i),
+            _ => todo!(),
+        })
+    }
+
+    fn drop(&mut self, resource: Resource<LazyParam>) -> wasmtime::Result<()> {
+        let _: LazyParam = self.resource_table.delete(resource)?;
+        Ok(())
+    }
+}
+
+impl crate::callback_api::HostCallback for ComponentRunStates {
+    fn invoke(&mut self, resource: Resource<Callback>, _params: Vec<callback_api::Param>) -> Result<callback_api::Param, wasmtime::Error> {
+        let _callback: &Callback = self.resource_table.get(&resource)?;
+        // TODO: let result = (callback.invoke)();
+        Ok(callback_api::Param::Int(42))
+    }
+
+    fn drop(&mut self, resource: Resource<Callback>) -> wasmtime::Result<()> {
+        let _: Callback = self.resource_table.delete(resource)?;
         Ok(())
     }
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn register(ctx: *mut RuntimeContext, name: *const c_char, func: extern "C" fn()) {
+pub extern "C" fn register(ctx: *mut RuntimeContext, name: *const c_char, _func: extern "C" fn()) {
     unsafe {
         let name_str = std::ffi::CStr::from_ptr(name).to_string_lossy();
         let mut ctx = Box::from_raw(ctx as *mut InternalRuntimeContext);
 
         let api = ctx.rquickjs.rquickjs_wasm_engine_api();
-        let unit_unit = UnitUnit {
-            func: Box::new(move || func()),
-        };
-        let res: Resource<callbacks::FUnitUnit> =
+        let unit_unit = Callback {};
+        let res: Resource<callback_api::Callback> =
             ctx.store.data_mut().resource_table.push(unit_unit).unwrap();
         let _result = api
             .engine()

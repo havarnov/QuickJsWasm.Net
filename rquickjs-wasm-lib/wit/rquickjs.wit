@@ -2,17 +2,22 @@ package rquickjs:wasm;
 
 interface callback-api {
     variant param-type {
-        unit,
-        uint,
+        int,
     }
 
     variant param {
         unit,
-        uint(u32),
+        int(s32),
+        vec(list<lazy-param>),
     }
 
+    resource lazy-param {
+      constructor(input: param);
+      get: func() -> param;
+    }
+
+
     resource callback {
-        params: func() -> list<param-type>;
         invoke: func(input: list<param>) -> param;
     }
 }
