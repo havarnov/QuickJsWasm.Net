@@ -1,9 +1,9 @@
 #![allow(unsafe_op_in_unsafe_fn)]
 
-use rquickjs::{Context, Function, Runtime};
+use rquickjs::{Context, Function, Runtime, Value};
 
 use crate::bindings::exports::rquickjs::wasm::engine_api::Guest;
-use crate::bindings::rquickjs::wasm::callbacks;
+use crate::bindings::rquickjs::wasm::callback_api;
 
 #[allow(unused)]
 mod bindings {
@@ -34,19 +34,50 @@ impl bindings::exports::rquickjs::wasm::engine_api::GuestEngine for Engine {
             .unwrap();
     }
 
-    fn register(&self, name: String, func: callbacks::FUnitUnit) {
+    fn register(&self, name: String, callback: callback_api::Callback) {
+        let params = callback.params();
         self.ctx
             .with(|ctx| -> Result<(), ()> {
-                let func = func;
+                let callback = callback;
                 let global = ctx.globals();
 
+                match params.as_slice() {
+                    [callback_api::ParamType::Uint] => {
+                        _ = global.set(
+                            &name,
+                            Function::new(ctx.clone(), move |i: u32| {
+                                match callback.invoke(&vec![callback_api::Param::Uint(i)]) {
+                                    callback_api::Param::Unit => Value::new_undefined(ctx.clone()),
+                                    callback_api::Param::Uint(result) => {
+                                        Value::new_int(ctx.clone(), result as i32)
+                                    }
+                                }
+                            })
+                            .unwrap()
+                            .with_name(&name)
+                            .unwrap(),
+                        );
+                    }
+                    [callback_api::ParamType::Unit] => {
+                        _ = global.set(
+                            &name,
+                            Function::new(ctx.clone(), move || _ = callback.invoke(&vec![]))
+                                .unwrap()
+                                .with_name(&name)
+                                .unwrap(),
+                        );
+                    }
+                    _ => todo!(),
+                };
+                /*
                 _ = global.set(
                     &name,
-                    Function::new(ctx.clone(), move || func.call())
+                    Function::new(ctx.clone(), move || _ = callback.invoke(&vec![]))
                         .unwrap()
                         .with_name(&name)
                         .unwrap(),
                 );
+                */
                 Ok(())
             })
             .unwrap();

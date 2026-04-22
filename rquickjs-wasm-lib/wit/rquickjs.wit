@@ -1,21 +1,32 @@
 package rquickjs:wasm;
 
-interface callbacks {
-    resource f-unit-unit {
-        call: func();
+interface callback-api {
+    variant param-type {
+        unit,
+        uint,
+    }
+
+    variant param {
+        unit,
+        uint(u32),
+    }
+
+    resource callback {
+        params: func() -> list<param-type>;
+        invoke: func(input: list<param>) -> param;
     }
 }
 
 interface engine-api {
-    use callbacks.{f-unit-unit};
+    use callback-api.{callback};
     resource engine {
         constructor();
         eval: func(script: string);
-        register: func(name: string, fn: f-unit-unit);
+        register: func(name: string, fn: callback);
     }
 }
 
 world rquickjs {
-    import callbacks;
+    import callback-api;
     export engine-api;
 }
