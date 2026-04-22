@@ -1,4 +1,4 @@
-use std::ffi::c_char;
+use std::ffi::{c_char, CString};
 
 use wasmtime::component::HasSelf;
 use wasmtime::component::{Component, Linker, ResourceTable};
@@ -101,7 +101,7 @@ pub extern "C" fn eval(ctx: *mut RuntimeContext, script: *const c_char) {
 }
 
 pub struct Callback {
-    func: Box<dyn Fn(Vec<callback_api::Param>) -> callback_api::Param + Send + 'static>,
+    func: Box<dyn Fn(String, Vec<callback_api::Param>) -> callback_api::Param + Send + 'static>,
 }
 
 pub struct LazyParam {
@@ -133,9 +133,9 @@ impl crate::callback_api::HostLazyParam for ComponentRunStates {
 }
 
 impl crate::callback_api::HostCallback for ComponentRunStates {
-    fn invoke(&mut self, resource: Resource<Callback>, params: Vec<callback_api::Param>) -> Result<callback_api::Param, wasmtime::Error> {
+    fn invoke(&mut self, resource: Resource<Callback>, name: String, params: Vec<callback_api::Param>) -> Result<callback_api::Param, wasmtime::Error> {
         let callback: &Callback = self.resource_table.get(&resource)?;
-        let result = (callback.func)(params);
+        let result = (callback.func)(name, params);
         Ok(result)
     }
 
@@ -161,7 +161,7 @@ pub struct Param {
 pub extern "C" fn register(
     ctx: *mut RuntimeContext,
     name: *const c_char,
-    func: extern "C" fn(array_ptr: *const Param, array_len: usize) -> *const Param,
+    func: extern "C" fn(name_ptr: *const c_char, array_ptr: *const Param, array_len: usize) -> *const Param,
 ) {
     unsafe {
         let name_str = std::ffi::CStr::from_ptr(name).to_string_lossy();
@@ -169,7 +169,11 @@ pub extern "C" fn register(
 
         let api = ctx.rquickjs.rquickjs_wasm_engine_api();
         let callback = Callback {
-            func: Box::new(move |params: Vec<callback_api::Param>| {
+            func: Box::new(move |name: String, params: Vec<callback_api::Param>| {
+                let name_ptr = CString::new(name)
+                    .expect("Couldn't create CString")
+                    .into_raw();
+
                 let params: Vec<Param> = params.into_iter()
                     .map(|p| match p {
                         callback_api::Param::Unit => Param { tag: ParamTag::Unit, int_value: 0i32, },
@@ -179,7 +183,7 @@ pub extern "C" fn register(
                     .collect();
                 let ptr = params.as_ptr();
                 let len = params.len();
-                let result: *const Param = func(ptr, len);
+                let result: *const Param = func(name_ptr, ptr, len);
                 let result = Box::from_raw(result as *mut Param);
                 println!("result from host: {}", result.int_value);
                 match result.tag {

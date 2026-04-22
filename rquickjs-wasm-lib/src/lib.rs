@@ -20,8 +20,8 @@ struct Engine {
 
 impl bindings::exports::rquickjs::wasm::engine_api::GuestEngine for Engine {
     fn new() -> Self {
-        let runtime = Runtime::new().unwrap();
-        let context = Context::full(&runtime).unwrap();
+        let runtime = Runtime::new().expect("her1");
+        let context = Context::full(&runtime).expect("her2");
         Engine {
             ctx: context,
             _rt: runtime,
@@ -31,10 +31,10 @@ impl bindings::exports::rquickjs::wasm::engine_api::GuestEngine for Engine {
     fn eval(&self, script: String) {
         self.ctx
             .with(|ctx| -> Result<(), ()> {
-                ctx.eval::<(), _>(script).unwrap();
+                ctx.eval::<(), _>(script).expect("her3");
                 Ok(())
             })
-            .unwrap();
+            .expect("her4");
     }
 
     fn register(&self, name: String, callback: callback_api::Callback) {
@@ -42,21 +42,22 @@ impl bindings::exports::rquickjs::wasm::engine_api::GuestEngine for Engine {
             .with(|ctx| -> Result<(), ()> {
                 let callback = callback;
                 let global = ctx.globals();
+                let name_cloned = name.clone();
 
                 _ = global.set(
-                    &name,
+                    &name.clone(),
                     Function::new(ctx.clone(), move |params: Rest<Value>| {
                         let params: Vec<callback_api::Param> = params
                          .0
                          .into_iter()
                          .map(|v| {
                              if v.is_int() {
-                                 callback_api::Param::Int(v.as_int().unwrap())
+                                 callback_api::Param::Int(v.as_int().expect("her5"))
                              } else if v.is_array() {
                                  let array: Vec<callback_api::LazyParam> = v.as_array().iter()
                                      .map(|i| {
                                          if i.is_int() {
-                                            callback_api::LazyParam::new(callback_api::Param::Int(i.as_int().unwrap()))
+                                            callback_api::LazyParam::new(callback_api::Param::Int(i.as_int().expect("her6")))
                                          }
                                          else {
                                              todo!()
@@ -71,17 +72,18 @@ impl bindings::exports::rquickjs::wasm::engine_api::GuestEngine for Engine {
                          })
                          .collect();
 
-                        match callback.invoke(params) {
+
+                        match callback.invoke(&name, params) {
                             callback_api::Param::Unit => Value::new_undefined(ctx.clone()),
                             callback_api::Param::Vec(result) => {
-                                let array = Array::new(ctx.clone()).unwrap();
+                                let array = Array::new(ctx.clone()).expect("her7");
                                 for (idx, item) in result.into_iter().enumerate()
                                 {
                                     let item = match item.get() {
                                         callback_api::Param::Int(i) => Value::new_int(ctx.clone(), i),
                                         _ => todo!(),
                                     };
-                                    array.set(idx, item).unwrap();
+                                    array.set(idx, item).expect("her8");
                                 }
                                 Value::from_array(array)
                             },
@@ -90,14 +92,14 @@ impl bindings::exports::rquickjs::wasm::engine_api::GuestEngine for Engine {
                             }
                         }
                     })
-                    .unwrap()
-                    .with_name(&name)
-                    .unwrap(),
+                    .expect("her9")
+                    .with_name(&name_cloned)
+                    .expect("her10"),
                 );
 
                 Ok(())
             })
-            .unwrap();
+            .expect("her11");
     }
 }
 

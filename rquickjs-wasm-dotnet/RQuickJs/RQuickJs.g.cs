@@ -25,7 +25,7 @@ namespace RQuickJs.Native
         internal static extern void eval(RuntimeContext* ctx, byte* script);
 
         [DllImport(__DllName, EntryPoint = "register", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        internal static extern void register(RuntimeContext* ctx, byte* name, delegate* unmanaged[Cdecl]<Param*, nuint, Param*> func);
+        internal static extern void register(RuntimeContext* ctx, byte* name, delegate* unmanaged[Cdecl]<byte*, Param*, nuint, Param*> func);
 
 
     }
