@@ -25,7 +25,7 @@ namespace RQuickJs.Native
         internal static extern void eval(RuntimeContext* ctx, byte* script);
 
         [DllImport(__DllName, EntryPoint = "register", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        internal static extern void register(RuntimeContext* ctx, byte* name, delegate* unmanaged[Cdecl]<void> _func);
+        internal static extern void register(RuntimeContext* ctx, byte* name, delegate* unmanaged[Cdecl]<Param*, nuint, Param*> func);
 
 
     }
@@ -35,6 +35,19 @@ namespace RQuickJs.Native
     {
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    internal unsafe partial struct Param
+    {
+        public ParamTag tag;
+        public int int_value;
+    }
+
+
+    internal enum ParamTag : uint
+    {
+        Unit = 1,
+        Int = 2,
+    }
 
 
 }

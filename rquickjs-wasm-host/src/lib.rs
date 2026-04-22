@@ -100,7 +100,9 @@ pub extern "C" fn eval(ctx: *mut RuntimeContext, script: *const c_char) {
     }
 }
 
-pub struct Callback {}
+pub struct Callback {
+    func: Box<dyn Fn(Vec<callback_api::Param>) -> callback_api::Param + Send + 'static>,
+}
 
 pub struct LazyParam {
     value: callback_api::Param,
@@ -131,10 +133,10 @@ impl crate::callback_api::HostLazyParam for ComponentRunStates {
 }
 
 impl crate::callback_api::HostCallback for ComponentRunStates {
-    fn invoke(&mut self, resource: Resource<Callback>, _params: Vec<callback_api::Param>) -> Result<callback_api::Param, wasmtime::Error> {
-        let _callback: &Callback = self.resource_table.get(&resource)?;
-        // TODO: let result = (callback.invoke)();
-        Ok(callback_api::Param::Int(42))
+    fn invoke(&mut self, resource: Resource<Callback>, params: Vec<callback_api::Param>) -> Result<callback_api::Param, wasmtime::Error> {
+        let callback: &Callback = self.resource_table.get(&resource)?;
+        let result = (callback.func)(params);
+        Ok(result)
     }
 
     fn drop(&mut self, resource: Resource<Callback>) -> wasmtime::Result<()> {
@@ -143,16 +145,51 @@ impl crate::callback_api::HostCallback for ComponentRunStates {
     }
 }
 
+#[repr(C)]
+pub enum ParamTag {
+    Unit = 1,
+    Int= 2,
+}
+
+#[repr(C)]
+pub struct Param {
+    tag: ParamTag,
+    int_value: i32,
+}
+
 #[unsafe(no_mangle)]
-pub extern "C" fn register(ctx: *mut RuntimeContext, name: *const c_char, _func: extern "C" fn()) {
+pub extern "C" fn register(
+    ctx: *mut RuntimeContext,
+    name: *const c_char,
+    func: extern "C" fn(array_ptr: *const Param, array_len: usize) -> *const Param,
+) {
     unsafe {
         let name_str = std::ffi::CStr::from_ptr(name).to_string_lossy();
         let mut ctx = Box::from_raw(ctx as *mut InternalRuntimeContext);
 
         let api = ctx.rquickjs.rquickjs_wasm_engine_api();
-        let unit_unit = Callback {};
+        let callback = Callback {
+            func: Box::new(move |params: Vec<callback_api::Param>| {
+                let params: Vec<Param> = params.into_iter()
+                    .map(|p| match p {
+                        callback_api::Param::Unit => Param { tag: ParamTag::Unit, int_value: 0i32, },
+                        callback_api::Param::Int(value) => Param { tag: ParamTag::Int, int_value: value, },
+                        _ => todo!(),
+                    })
+                    .collect();
+                let ptr = params.as_ptr();
+                let len = params.len();
+                let result: *const Param = func(ptr, len);
+                let result = Box::from_raw(result as *mut Param);
+                println!("result from host: {}", result.int_value);
+                match result.tag {
+                    ParamTag::Unit => callback_api::Param::Unit,
+                    ParamTag::Int => callback_api::Param::Int(result.int_value),
+                }
+            }),
+        };
         let res: Resource<callback_api::Callback> =
-            ctx.store.data_mut().resource_table.push(unit_unit).unwrap();
+            ctx.store.data_mut().resource_table.push(callback).unwrap();
         let _result = api
             .engine()
             .call_register(&mut ctx.store, ctx.instance, &name_str, res)
@@ -161,3 +198,4 @@ pub extern "C" fn register(ctx: *mut RuntimeContext, name: *const c_char, _func:
         let _ = Box::into_raw(ctx);
     }
 }
+
