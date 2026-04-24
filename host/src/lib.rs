@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use wasmtime::component::HasSelf;
 use wasmtime::component::{Component, Linker, ResourceTable};
-use wasmtime::{Engine, Store};
+use wasmtime::{Config, Engine, Store};
 
 use crate::rquickjs::wasm::callback_api;
 use wasmtime::component::Resource;
@@ -44,20 +44,76 @@ struct InternalRuntimeContext {
     instance: ResourceAny,
 }
 
+#[repr(C)]
+pub enum RuntimeContextErrorTag {
+    Engine = 1,
+    Linker = 2,
+    Component = 3,
+}
+
+#[repr(C)]
+pub struct RuntimeContextError {
+    tag: RuntimeContextErrorTag,
+    has_message: bool,
+    message: *const c_char,
+}
+
+impl RuntimeContextError {
+    pub fn with_msg(tag: RuntimeContextErrorTag, message: &str) -> *mut Self {
+        let message_ptr = CString::new(message)
+            .expect("Couldn't create CString")
+            .into_raw();
+
+        Box::into_raw(Box::new(RuntimeContextError {
+            tag,
+            has_message: true,
+            message: message_ptr,
+        }))
+    }
+}
+
+#[repr(C)]
+pub struct RuntimeContextResult {
+    model: *mut RuntimeContext,
+    error: *mut RuntimeContextError,
+    is_ok: bool,
+}
+
+impl RuntimeContextResult {
+    pub fn error(tag: RuntimeContextErrorTag, message: &str) -> *mut Self {
+        Box::into_raw(Box::new(RuntimeContextResult {
+            model: std::ptr::null_mut(),
+            error: RuntimeContextError::with_msg(tag, message),
+            is_ok: false,
+        }))
+    }
+}
+
 #[unsafe(no_mangle)]
-pub extern "C" fn init(wasm: *const u8, length: usize) -> *mut RuntimeContext {
+pub extern "C" fn init(wasm: *const u8, length: usize) -> *mut RuntimeContextResult {
     unsafe {
-        let wasm = std::slice::from_raw_parts(wasm, length as usize);
+        let wasm = std::slice::from_raw_parts(wasm, length);
 
-        let engine = Engine::default();
+        let mut config = Config::default();
+        config.consume_fuel(false);
+
+        let engine = match Engine::new(&config) {
+            Ok(engine) => engine,
+            Err(error) => return RuntimeContextResult::error(RuntimeContextErrorTag::Engine, &error.to_string()),
+        };
+
         let mut linker = Linker::new(&engine);
-        wasmtime_wasi::p2::add_to_linker_sync(&mut linker).unwrap();
+        match wasmtime_wasi::p2::add_to_linker_sync(&mut linker) {
+            Ok(_) => (),
+            Err(error) => return RuntimeContextResult::error(RuntimeContextErrorTag::Linker, &error.to_string()),
+        }
 
-        crate::callback_api::add_to_linker::<ComponentRunStates, HasSelf<_>>(
+        if let Err(error) = callback_api::add_to_linker::<ComponentRunStates, HasSelf<_>>(
             &mut linker,
             |state: &mut ComponentRunStates| state,
-        )
-        .unwrap();
+        ) {
+            return RuntimeContextResult::error(RuntimeContextErrorTag::Linker, &error.to_string());
+        }
 
         let wasi = WasiCtx::builder().inherit_stdio().inherit_args().build();
         let state = ComponentRunStates {
@@ -66,16 +122,24 @@ pub extern "C" fn init(wasm: *const u8, length: usize) -> *mut RuntimeContext {
         };
         let mut store = Store::new(&engine, state);
 
-        let component = Component::from_binary(
+        let component = match Component::from_binary(
             &engine,
-            wasm)
-        .unwrap();
+            wasm) {
+            Ok(component) => component,
+            Err(err) => return RuntimeContextResult::error(RuntimeContextErrorTag::Component, &err.to_string()),
+        };
 
-        let rquickjs = Rquickjs::instantiate(&mut store, &component, &linker).unwrap();
+        let rquickjs = match Rquickjs::instantiate(&mut store, &component, &linker) {
+            Ok(rquickjs) => rquickjs,
+            Err(err) => return RuntimeContextResult::error(RuntimeContextErrorTag::Component, &err.to_string()),
+        };
 
         let api = rquickjs.rquickjs_wasm_engine_api();
 
-        let engine_instance = api.engine().call_constructor(&mut store).unwrap();
+        let engine_instance = match api.engine().call_constructor(&mut store) {
+            Ok(instance) => instance,
+            Err(err) => return RuntimeContextResult::error(RuntimeContextErrorTag::Engine, &err.to_string()),
+        };
 
         let ctx = Box::new(InternalRuntimeContext {
             _engine: engine,
@@ -84,7 +148,15 @@ pub extern "C" fn init(wasm: *const u8, length: usize) -> *mut RuntimeContext {
             instance: engine_instance,
         });
 
-        Box::into_raw(ctx) as *mut RuntimeContext
+        let ctx = Box::into_raw(ctx) as *mut RuntimeContext;
+
+        let result = Box::new(RuntimeContextResult {
+            model: ctx,
+            error: std::ptr::null_mut(),
+            is_ok: true,
+        });
+
+        Box::into_raw(result)
     }
 }
 
@@ -117,7 +189,7 @@ impl crate::callback_api::Host for ComponentRunStates {}
 impl crate::callback_api::HostLazyParam for ComponentRunStates {
     fn new(&mut self, value: callback_api::Param) -> Result<Resource<LazyParam>, wasmtime::Error> {
         let resource: LazyParam = LazyParam { value, };
-        let resource: Resource<callback_api::LazyParam> = self.resource_table.push(resource).unwrap();
+        let resource: Resource<callback_api::LazyParam> = self.resource_table.push(resource)?;
         Ok(resource)
     }
 

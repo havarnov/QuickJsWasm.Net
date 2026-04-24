@@ -10,7 +10,13 @@ unsafe
     var bytes = File.ReadAllBytes(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "guest.wasm"));
     fixed (byte* byteP = bytes)
     {
-        ctx = NativeMethods.init(byteP, (nuint)bytes.Length);
+        RuntimeContextResult* result = NativeMethods.init(byteP, (nuint)bytes.Length);
+        if (!result->is_ok)
+        {
+            throw new Exception("Failed to init guest");
+        }
+
+        ctx = result->model;
     }
 
 
@@ -130,7 +136,13 @@ internal class Foo
             var bytes = File.ReadAllBytes(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "guest.wasm"));
             fixed (byte* byteP = bytes)
             {
-                ctx = NativeMethods.init(byteP, (nuint)bytes.Length);
+                RuntimeContextResult* result = NativeMethods.init(byteP, (nuint)bytes.Length);
+                if (!result->is_ok)
+                {
+                    throw new Exception("Failed to init guest");
+                }
+
+                ctx = result->model;
             }
 
         }
