@@ -45,44 +45,47 @@ struct InternalRuntimeContext {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn init() -> *mut RuntimeContext {
-    let engine = Engine::default();
-    let mut linker = Linker::new(&engine);
-    wasmtime_wasi::p2::add_to_linker_sync(&mut linker).unwrap();
+pub extern "C" fn init(wasm: *const u8, length: usize) -> *mut RuntimeContext {
+    unsafe {
+        let wasm = std::slice::from_raw_parts(wasm, length as usize);
 
-    crate::callback_api::add_to_linker::<ComponentRunStates, HasSelf<_>>(
-        &mut linker,
-        |state: &mut ComponentRunStates| state,
-    )
-    .unwrap();
+        let engine = Engine::default();
+        let mut linker = Linker::new(&engine);
+        wasmtime_wasi::p2::add_to_linker_sync(&mut linker).unwrap();
 
-    let wasi = WasiCtx::builder().inherit_stdio().inherit_args().build();
-    let state = ComponentRunStates {
-        wasi_ctx: wasi,
-        resource_table: ResourceTable::new(),
-    };
-    let mut store = Store::new(&engine, state);
+        crate::callback_api::add_to_linker::<ComponentRunStates, HasSelf<_>>(
+            &mut linker,
+            |state: &mut ComponentRunStates| state,
+        )
+        .unwrap();
 
-    let component = Component::from_file(
-        &engine,
-        "./guest.wasm",
-    )
-    .unwrap();
+        let wasi = WasiCtx::builder().inherit_stdio().inherit_args().build();
+        let state = ComponentRunStates {
+            wasi_ctx: wasi,
+            resource_table: ResourceTable::new(),
+        };
+        let mut store = Store::new(&engine, state);
 
-    let rquickjs = Rquickjs::instantiate(&mut store, &component, &linker).unwrap();
+        let component = Component::from_binary(
+            &engine,
+            wasm)
+        .unwrap();
 
-    let api = rquickjs.rquickjs_wasm_engine_api();
+        let rquickjs = Rquickjs::instantiate(&mut store, &component, &linker).unwrap();
 
-    let engine_instance = api.engine().call_constructor(&mut store).unwrap();
+        let api = rquickjs.rquickjs_wasm_engine_api();
 
-    let ctx = Box::new(InternalRuntimeContext {
-        _engine: engine,
-        store,
-        rquickjs,
-        instance: engine_instance,
-    });
+        let engine_instance = api.engine().call_constructor(&mut store).unwrap();
 
-    Box::into_raw(ctx) as *mut RuntimeContext
+        let ctx = Box::new(InternalRuntimeContext {
+            _engine: engine,
+            store,
+            rquickjs,
+            instance: engine_instance,
+        });
+
+        Box::into_raw(ctx) as *mut RuntimeContext
+    }
 }
 
 #[unsafe(no_mangle)]

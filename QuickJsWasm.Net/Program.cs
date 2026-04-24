@@ -1,12 +1,18 @@
 ﻿using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using RQuickJs.Native;
+using QuickJsWasm.Native;
 
 Console.WriteLine("Hello, World!");
 unsafe
 {
-    var ctx = RQuickJs.Native.NativeMethods.init();
+    RuntimeContext* ctx;
+    var bytes = File.ReadAllBytes(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "guest.wasm"));
+    fixed (byte* byteP = bytes)
+    {
+        ctx = NativeMethods.init(byteP, (nuint)bytes.Length);
+    }
+
 
     Console.WriteLine("After init");
 
@@ -14,7 +20,7 @@ unsafe
         var nameBytes = System.Text.Encoding.UTF8.GetBytes("foobar");
         fixed (byte* nameP = nameBytes)
         {
-            RQuickJs.Native.NativeMethods.register(ctx, nameP, &Callback);
+            NativeMethods.register(ctx, nameP, &Callback);
         }
     }
 
@@ -22,7 +28,7 @@ unsafe
         var nameBytes = System.Text.Encoding.UTF8.GetBytes("add");
         fixed (byte* nameP = nameBytes)
         {
-            RQuickJs.Native.NativeMethods.register(ctx, nameP, &Callback);
+            NativeMethods.register(ctx, nameP, &Callback);
         }
     }
 
@@ -36,7 +42,7 @@ unsafe
             );
     fixed (byte* scriptP = scriptBytes)
     {
-        RQuickJs.Native.NativeMethods.eval(ctx, scriptP);
+        NativeMethods.eval(ctx, scriptP);
     }
 
     var state = new State();
@@ -121,7 +127,12 @@ internal class Foo
     {
         unsafe
         {
-            ctx = NativeMethods.init();
+            var bytes = File.ReadAllBytes(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "guest.wasm"));
+            fixed (byte* byteP = bytes)
+            {
+                ctx = NativeMethods.init(byteP, (nuint)bytes.Length);
+            }
+
         }
     }
 

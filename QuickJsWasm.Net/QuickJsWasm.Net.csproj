@@ -12,6 +12,12 @@
     <Import Project="./LinkToNativeLibrary.props"/>
 
   <ItemGroup>
+    <None Update="guest.wasm">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include="runtimes/**/*.*">
       <Pack>true</Pack>
       <PackagePath>runtimes/%(RecursiveDir)%(Filename)%(Extension)</PackagePath>

@@ -8,7 +8,7 @@ using System;
 using System.Runtime.InteropServices;
 
 
-namespace RQuickJs.Native
+namespace QuickJsWasm.Native
 {
     internal static unsafe partial class NativeMethods
     {
@@ -19,7 +19,7 @@ namespace RQuickJs.Native
 
 
         [DllImport(__DllName, EntryPoint = "init", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        internal static extern RuntimeContext* init();
+        internal static extern RuntimeContext* init(byte* wasm, nuint length);
 
         [DllImport(__DllName, EntryPoint = "eval", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         internal static extern void eval(RuntimeContext* ctx, byte* script);
