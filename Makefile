@@ -1,4 +1,4 @@
-PROJECT_NAME := rquickjs-wasm
+PROJECT_NAME := quickjs-wasm-dotnet
 
 # 1. ARCHITECTURE DETECTION
 # Get the Operating System (e.g., Darwin, Linux)
@@ -34,7 +34,7 @@ endif
 
 # Construct the full file paths
 SOURCE_LIB_PATH := ./target/release/$(NATIVE_LIB_NAME)$(NATIVE_LIB_EXT)
-DEST_DIR := rquickjs-wasm-dotnet/runtimes/$(RID)/native
+DEST_DIR := QuickJsWasm.Net/runtimes/$(RID)/native
 DEST_LIB_PATH := $(DEST_DIR)/$(DEST_NATIVE_LIB_NAME)$(NATIVE_LIB_EXT)
 
 all: build
@@ -51,7 +51,7 @@ copy: build-host
 	@echo "Copying native library for $(RID) to $(DEST_DIR)/"
 	mkdir -p $(DEST_DIR)
 	cp $(SOURCE_LIB_PATH) $(DEST_LIB_PATH)
-	cp target/wasm32-wasip2/release/guest.wasm rquickjs-wasm-dotnet/
+	cp target/wasm32-wasip2/release/guest.wasm QuickJsWasm.Net/
 
 # Phony targets to prevent conflicts with files of the same name
 .PHONY: all build-native copy
