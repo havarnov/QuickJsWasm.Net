@@ -12,7 +12,7 @@ namespace RQuickJs.Native
 {
     internal static unsafe partial class NativeMethods
     {
-        const string __DllName = "librquickjs_dotnet";
+        const string __DllName = "libhost_dotnet";
 
 
 

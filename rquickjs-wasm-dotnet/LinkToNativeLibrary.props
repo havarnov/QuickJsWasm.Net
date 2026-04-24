@@ -9,29 +9,29 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <None Condition="$(IsLinuxX64) == true" Include="./runtimes/linux-x64/native/librquickjs_dotnet.so">
+        <None Condition="$(IsLinuxX64) == true" Include="./runtimes/linux-x64/native/libhost_dotnet.so">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-            <Link>librquickjs_dotnet.so</Link>
+            <Link>libhost_dotnet.so</Link>
         </None>
-        <None Condition="$(IsLinuxArm64) == true" Include="./runtimes/linux-arm64/native/librquickjs_dotnet.so">
+        <None Condition="$(IsLinuxArm64) == true" Include="./runtimes/linux-arm64/native/libhost_dotnet.so">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-            <Link>librquickjs_dotnet.so</Link>
+            <Link>libhost_dotnet.so</Link>
         </None>
-        <None Condition="$(IsOsxX64) == true" Include="./runtimes/osx-x64/native/librquickjs_dotnet.dylib">
+        <None Condition="$(IsOsxX64) == true" Include="./runtimes/osx-x64/native/libhost_dotnet.dylib">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-            <Link>librquickjs_dotnet.dylib</Link>
+            <Link>libhost_dotnet.dylib</Link>
         </None>
-        <None Condition="$(IsOsxArm64) == true" Include="./runtimes/osx-arm64/native/librquickjs_dotnet.dylib">
+        <None Condition="$(IsOsxArm64) == true" Include="./runtimes/osx-arm64/native/libhost_dotnet.dylib">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-            <Link>librquickjs_dotnet.dylib</Link>
+            <Link>libhost_dotnet.dylib</Link>
         </None>
-        <None Condition="$(IsWindowsX64) == true" Include="./runtimes/win-x64/native/librquickjs_dotnet.dll">
+        <None Condition="$(IsWindowsX64) == true" Include="./runtimes/win-x64/native/libhost_dotnet.dll">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-            <Link>librquickjs_dotnet.dll</Link>
+            <Link>libhost_dotnet.dll</Link>
         </None>
-        <None Condition="$(IsWindowsArm64) == true" Include="./runtimes/win-arm64/native/librquickjs_dotnet.dll">
+        <None Condition="$(IsWindowsArm64) == true" Include="./runtimes/win-arm64/native/libhost_dotnet.dll">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-            <Link>librquickjs_dotnet.dll</Link>
+            <Link>libhost_dotnet.dll</Link>
         </None>
     </ItemGroup>
 </Project>

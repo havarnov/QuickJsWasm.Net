@@ -2,7 +2,7 @@
 crate-type = ["cdylib"]
 
 [package]
-name = "rquickjs-wasm-lib"
+name = "guest"
 version = "0.1.0"
 edition = "2024"
 

@@ -12,7 +12,7 @@ use wasmtime_wasi::{WasiCtx, WasiCtxView, WasiView};
 
 wasmtime::component::bindgen!({
     world: "rquickjs",
-    path: "../rquickjs-wasm-lib/wit/rquickjs.wit",
+    path: "../guest/wit/rquickjs.wit",
     with: {
         "rquickjs:wasm/callback-api.callback": Callback,
         "rquickjs:wasm/callback-api.lazy-param": LazyParam,
@@ -65,7 +65,7 @@ pub extern "C" fn init() -> *mut RuntimeContext {
 
     let component = Component::from_file(
         &engine,
-        "./rquickjs_wasm_lib.wasm",
+        "./guest.wasm",
     )
     .unwrap();
 
