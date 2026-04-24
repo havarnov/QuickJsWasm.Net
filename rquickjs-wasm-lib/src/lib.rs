@@ -51,21 +51,23 @@ impl bindings::exports::rquickjs::wasm::engine_api::GuestEngine for Engine {
                          .0
                          .into_iter()
                          .map(|v| {
-                             if v.is_int() {
-                                 callback_api::Param::Int(v.as_int().expect("her5"))
+                             if v.is_null() {
+                                 callback_api::Param::Null
+                             } else if v.is_int() {
+                                 callback_api::Param::Int(Some(v.as_int().expect("her5")))
                              } else if v.is_array() {
                                  let array: Vec<callback_api::LazyParam> = v.as_array().iter()
                                      .map(|i| {
                                          if i.is_int() {
-                                            callback_api::LazyParam::new(callback_api::Param::Int(i.as_int().expect("her6")))
+                                            callback_api::LazyParam::new(callback_api::Param::Int(Some(i.as_int().expect("her6"))))
                                          }
                                          else {
-                                             todo!()
+                                             todo!("recursive!")
                                          }
                                      })
                                      .collect();
 
-                                 callback_api::Param::Vec(array)
+                                 callback_api::Param::Vec(Some(array))
                              } else {
                                  todo!("")
                              }
@@ -75,21 +77,31 @@ impl bindings::exports::rquickjs::wasm::engine_api::GuestEngine for Engine {
 
                         match callback.invoke(&name, params) {
                             callback_api::Param::Unit => Value::new_undefined(ctx.clone()),
-                            callback_api::Param::Vec(result) => {
+                            callback_api::Param::Vec(Some(result)) => {
                                 let array = Array::new(ctx.clone()).expect("her7");
                                 for (idx, item) in result.into_iter().enumerate()
                                 {
                                     let item = match item.get() {
-                                        callback_api::Param::Int(i) => Value::new_int(ctx.clone(), i),
+                                        callback_api::Param::Int(Some(i)) => Value::new_int(ctx.clone(), i),
                                         _ => todo!(),
                                     };
                                     array.set(idx, item).expect("her8");
                                 }
                                 Value::from_array(array)
                             },
-                            callback_api::Param::Int(result) => {
+                            callback_api::Param::Int(Some(result)) => {
                                 Value::new_int(ctx.clone(), result)
-                            }
+                            },
+                            callback_api::Param::Str(Some(result)) => {
+                                Value::from_string(rquickjs::String::from_str(ctx.clone(), &result).expect("Shoyld be able to create string"))
+                            },
+                            callback_api::Param::Vec(None)
+                            | callback_api::Param::Str(None)
+                            | callback_api::Param::Int(None)
+                            | callback_api::Param::Null
+                            => {
+                                Value::new_null(ctx.clone())
+                            },
                         }
                     })
                     .expect("her9")

@@ -1,14 +1,12 @@
 package rquickjs:wasm;
 
 interface callback-api {
-    variant param-type {
-        int,
-    }
-
     variant param {
         unit,
-        int(s32),
-        vec(list<lazy-param>),
+        null,
+        int(option<s32>),
+        str(option<string>),
+        vec(option<list<lazy-param>>),
     }
 
     resource lazy-param {

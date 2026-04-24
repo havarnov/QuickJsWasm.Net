@@ -36,10 +36,19 @@ namespace RQuickJs.Native
     }
 
     [StructLayout(LayoutKind.Sequential)]
+    internal unsafe partial struct ParamList
+    {
+        public Param* start;
+        public nuint len;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
     internal unsafe partial struct Param
     {
         public ParamTag tag;
         public int int_value;
+        public byte* string_value;
+        public ParamList list_value;
     }
 
 
@@ -47,6 +56,9 @@ namespace RQuickJs.Native
     {
         Unit = 1,
         Int = 2,
+        String = 3,
+        Null = 4,
+        List = 5,
     }
 
 
