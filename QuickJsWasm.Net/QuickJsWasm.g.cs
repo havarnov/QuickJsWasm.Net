@@ -22,7 +22,7 @@ namespace QuickJsWasm.Native
         internal static extern RuntimeContextResult* init(byte* wasm, nuint length);
 
         [DllImport(__DllName, EntryPoint = "eval", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        internal static extern void eval(RuntimeContext* ctx, byte* script);
+        internal static extern EvalResult* eval(RuntimeContext* ctx, byte* script);
 
         [DllImport(__DllName, EntryPoint = "register", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         internal static extern void register(RuntimeContext* ctx, byte* name, delegate* unmanaged[Cdecl]<byte*, Param*, nuint, Param*> func);
@@ -52,6 +52,22 @@ namespace QuickJsWasm.Native
     }
 
     [StructLayout(LayoutKind.Sequential)]
+    internal unsafe partial struct EvalError
+    {
+        public EvalErrorTag tag;
+        [MarshalAs(UnmanagedType.U1)] public bool has_message;
+        public byte* message;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal unsafe partial struct EvalResult
+    {
+        public Param* eval_result;
+        public EvalError* error;
+        [MarshalAs(UnmanagedType.U1)] public bool is_ok;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
     internal unsafe partial struct ParamList
     {
         public Param* start;
@@ -73,6 +89,11 @@ namespace QuickJsWasm.Native
         Engine = 1,
         Linker = 2,
         Component = 3,
+    }
+
+    internal enum EvalErrorTag : uint
+    {
+        TODO = 1,
     }
 
     internal enum ParamTag : uint

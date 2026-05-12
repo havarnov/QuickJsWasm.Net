@@ -9,11 +9,22 @@ interface callback-api {
         vec(option<list<lazy-param>>),
     }
 
+    enum error-code {
+        rquickjs,
+        eval,
+        register,
+        todo,
+    }
+
+    record callback-error {
+        message: string,
+        error-code: error-code,
+    }
+
     resource lazy-param {
       constructor(input: param);
       get: func() -> param;
     }
-
 
     resource callback {
         invoke: func(name: string, input: list<param>) -> param;
@@ -21,11 +32,11 @@ interface callback-api {
 }
 
 interface engine-api {
-    use callback-api.{callback};
+    use callback-api.{callback, param, callback-error};
     resource engine {
-        constructor();
-        eval: func(script: string);
-        register: func(name: string, fn: callback);
+        create: static func() -> result<engine, callback-error>;
+        eval: func(script: string) -> result<param, callback-error>;
+        register: func(name: string, fn: callback) -> result<_, callback-error>;
     }
 }
 

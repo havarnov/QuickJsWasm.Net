@@ -58,7 +58,17 @@ unsafe
     foo.Eval("yolo();");
 
     foo.Reg("add", (int a, int b) => a + b);
-    foo.Eval("add(10, 20);");
+    var evalResult = foo.Eval("add(10, 20);");
+    Console.WriteLine("evalResult: " + evalResult);
+
+    var evalResult2 = foo.Eval(
+        """
+        let v = add(12, 12);
+        let r = add(v, v);
+        add(r, 10);
+        """
+        );
+    Console.WriteLine("evalResult2: " + evalResult2);
 
     foo.Reg("inc", state.Incremental);
     foo.Reg("state_add", state.Add);
@@ -150,7 +160,7 @@ internal class Foo
 
     private static readonly ConcurrentDictionary<string, Delegate>_registry = new();
 
-    public void Eval(string code)
+    public object? Eval(string code)
     {
         unsafe
         {
@@ -158,7 +168,23 @@ internal class Foo
 
             fixed (byte* scriptP = scriptBytes)
             {
-                NativeMethods.eval(ctx, scriptP);
+                var result = NativeMethods.eval(ctx, scriptP);
+                if (!result->is_ok)
+                {
+                    throw new Exception("Failed to eval.");
+                }
+
+                switch (result->eval_result->tag)
+                {
+                    case ParamTag.Unit:
+                        return new object();
+                    case ParamTag.Null:
+                        return null;
+                    case ParamTag.Int:
+                        return result->eval_result->int_value;
+                    default:
+                        throw new NotImplementedException();
+                }
             }
         }
     }
