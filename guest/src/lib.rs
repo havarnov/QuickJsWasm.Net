@@ -6,7 +6,7 @@ use crate::bindings::rquickjs::wasm::callback_api;
 use crate::bindings::rquickjs::wasm::callback_api::Param;
 use callback_api::CallbackError;
 use rquickjs::function::Rest;
-use rquickjs::{Array, Context, Error, Function, Runtime, Value};
+use rquickjs::{Array, Context, Ctx, Error, Function, Runtime, Value};
 
 #[allow(unused)]
 mod bindings {
@@ -42,25 +42,7 @@ impl bindings::exports::rquickjs::wasm::engine_api::GuestEngine for Engine {
     fn eval(&self, script: String) -> Result<Param, CallbackError> {
         self.ctx.with(|ctx| -> Result<Param, CallbackError> {
             let value = ctx.eval::<Value, _>(script)?;
-            if value.is_null() {
-                Ok(Param::Null)
-            } else if value.is_int() {
-                Ok(Param::Int(Some(value.get()?)))
-            } else if value.is_string() {
-                Ok(Param::Str(Some(value.get()?)))
-            } else if value.is_undefined() {
-                Ok(Param::Unit)
-            } else if value.is_array() {
-                Err(CallbackError {
-                    message: "is_array not implemented.".to_string(),
-                    error_code: callback_api::ErrorCode::Todo,
-                })
-            } else {
-                Err(CallbackError {
-                    message: "woot?".to_string(),
-                    error_code: callback_api::ErrorCode::Eval,
-                })
-            }
+            Ok(value.into())
         })
     }
 
@@ -74,68 +56,71 @@ impl bindings::exports::rquickjs::wasm::engine_api::GuestEngine for Engine {
             let global = ctx.globals();
             let name_cloned = name.clone();
 
-            _ = global.set(
-                &name.clone(),
-                Function::new(ctx.clone(), move |params: Rest<Value>| {
-                    let params: Vec<Param> = params
-                        .0
-                        .into_iter()
-                        .map(|v| {
-                            if v.is_null() {
-                                Param::Null
-                            } else if v.is_int() {
-                                Param::Int(Some(v.as_int().expect("Just verified that it is int.")))
-                            } else if v.is_array() {
-                                let array: Vec<callback_api::LazyParam> = v
-                                    .as_array()
-                                    .iter()
-                                    .map(|i| {
-                                        if i.is_int() {
-                                            callback_api::LazyParam::new(Param::Int(Some(
-                                                i.as_int().expect("Just verified that it is int."),
-                                            )))
-                                        } else {
-                                            todo!("recursive!")
-                                        }
-                                    })
-                                    .collect();
+            let func = Function::new(ctx.clone(), move |params: Rest<Value>| {
+                let params: Vec<Param> = params.0.into_iter().map(|v| v.into()).collect();
+                callback.invoke(&name_cloned, params).into_value(ctx.clone())
+            })?
+            .with_name(&name)?;
 
-                                Param::Vec(Some(array))
-                            } else {
-                                todo!("")
-                            }
-                        })
-                        .collect();
-
-                    match callback.invoke(&name, params) {
-                        Param::Unit => Value::new_undefined(ctx.clone()),
-                        Param::Vec(Some(result)) => {
-                            let array = Array::new(ctx.clone()).expect("Couldn't create Array");
-                            for (idx, item) in result.into_iter().enumerate() {
-                                let item = match item.get() {
-                                    Param::Int(Some(i)) => Value::new_int(ctx.clone(), i),
-                                    _ => todo!(),
-                                };
-                                array.set(idx, item).expect("Couldn't set item in Array");
-                            }
-                            Value::from_array(array)
-                        }
-                        Param::Int(Some(result)) => Value::new_int(ctx.clone(), result),
-                        Param::Str(Some(result)) => Value::from_string(
-                            rquickjs::String::from_str(ctx.clone(), &result)
-                                .expect("Should be able to create string"),
-                        ),
-                        Param::Vec(None) | Param::Str(None) | Param::Int(None) | Param::Null => {
-                            Value::new_null(ctx.clone())
-                        }
-                    }
-                })?
-                .with_name(&name_cloned)?,
-            )?;
+            global.set(&name.clone(), func)?;
 
             Ok(())
         })?;
         Ok(())
+    }
+}
+
+impl Param {
+    fn into_value(self, ctx: Ctx) -> Value {
+        match self {
+            Param::Int(Some(i)) => Value::new_int(ctx.clone(), i),
+            Param::Str(Some(s)) => Value::from_string(
+                rquickjs::String::from_str(ctx.clone(), &s).expect("Should be able to create string")),
+            Param::Unit => Value::new_undefined(ctx.clone()),
+            Param::Vec(None) | Param::Str(None) | Param::Int(None) | Param::Null => {
+                Value::new_null(ctx.clone())
+            }
+            Param::Vec(Some(result)) => {
+                let array = Array::new(ctx.clone()).expect("Couldn't create Array");
+                for (idx, item) in result.into_iter().enumerate() {
+                    let item = item.get().into_value(ctx.clone());
+                    array.set(idx, item).expect("Couldn't set item in Array");
+                }
+                Value::from_array(array)
+            }
+        }
+    }
+}
+
+impl Into<Param> for Value<'_> {
+    fn into(self) -> Param {
+        if self.is_null() {
+            Param::Null
+        } else if self.is_int() {
+            Param::Int(Some(self.as_int().expect("Just verified that it is int.")))
+        } else if self.is_string() {
+            Param::Str(Some(
+                self.as_string()
+                    .expect("Just verified that it is string.")
+                    .to_string()
+                    .expect("Should be able to create string"),
+            ))
+        } else if self.is_undefined() {
+            Param::Unit
+        } else if self.is_array() {
+            Param::Vec(Some(
+                self.as_array()
+                    .iter()
+                    .map(|item| {
+                        let item: Value = item.as_value().clone();
+                        let item: Param = item.into();
+                        callback_api::LazyParam::new(item)
+                    })
+                    .collect(),
+            ))
+        } else {
+            todo!("NOT IMPLEMENTED VALUE?")
+        }
     }
 }
 
